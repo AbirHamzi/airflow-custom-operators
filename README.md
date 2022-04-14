@@ -1,10 +1,6 @@
-# airflow-salt
+# airflow-AWX
 
-Airflow operator and hook to communicate with Saltstack's salt.netapi.rest_cherrypy.
+Airflow operator and hook to communicate with AWX.
 
-# contributors
 
-https://github.com/alo-alt
-
-https://github.com/kris-savoy
 
