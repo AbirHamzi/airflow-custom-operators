@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from builtins import str
 import logging
 import pprint
@@ -10,55 +8,44 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
 
-class SaltHook(BaseHook):
+class AWXHook(BaseHook):
 	"""
-	Interact with Salt servers
+	Interact with AWX API
 	"""
 
-	def __init__(self, salt_conn_id='salt_default'):
-		self.salt_conn_id = salt_conn_id
+	def __init__(self):
 		self.authToken = None
+		self.authUrl = 'https://awx.mhf.mhc/api/v2/tokens/'
 	
 	def getAuthedConnection(self):
 		"""
 		Obtains an authenticated connection
 		"""
-		conn = self.get_connection(self.salt_conn_id)
 		session = requests.Session()
-		port = 8000
-		
-		if conn.port:
-			port = conn.port
-		
-		self.baseUrl = 'https://' + conn.host + ':' + str(port) + '/'
-		
-		session.headers.update({ 'Content-Type': 'application/json; charset=UTF-8' })
+
+		session.headers.update({'Content-Type': 'application/json','Authorization': 'Basic YWlyZmxvdzpBd2FlTmVvNXNhaWtvVjR3cGhlaTVJYTZlYWtpNkRlMA=='})
 		
 		if not self.authToken:
-			self.getAuthToken(session, conn.login, conn.password)
+			self.getAuthToken(session, "", "")
 		
 		session.headers.update({ 'X-Auth-Token': self.authToken })
 		return session;
 	
 	def getAuthToken( self, session, username, password ):
 		"""
-		Gets auth token from the Salt API
+		Gets auth token from the AWX API
 		"""
 		self.authToken = None
-		
-		url = self.baseUrl + 'login'
-		data = { 'username': username, 'password': password, 'eauth': 'pam' }
+		url = self.authUrl
 		
 		request = requests.Request('POST', url)
 		prepped_request = session.prepare_request(request)
-		prepped_request.body = json.dumps(data)
-		prepped_request.headers.update({ 'Content-Length': len(prepped_request.body) });
 		
 		response = session.send(prepped_request, stream=False, verify=False, allow_redirects=True)
 		resp = response.json()
-		
-		if 'token' in resp.get('return', [{}])[0]:
-			self.authToken = resp['return'][0]['token']
+
+		if resp.get('token'):
+			self.authToken = resp['token']
 		else:
 			raise AirflowException( 'Could not authenticate properly: ' + str(response.status_code) + ' ' + response.reason )
 		
@@ -68,13 +55,13 @@ class SaltHook(BaseHook):
 			raise AirflowException( 'Could not authenticate properly: ' + str(response.status_code) + ' ' + response.reason )
 		return self.authToken
 	
-	def run( self, client='local', tgt=None, fun=None, fun_args=None ):
+	def run( self, custom_data={}, job_url='' ):
 		"""
-		Calls the API
+		Calls the AWX API
 		"""
 		session = self.getAuthedConnection()
-		url = self.baseUrl
-		data = { 'client': client, 'tgt': tgt, 'fun': fun, 'args': fun_args }
+		url = job_url
+		data = custom_data
 		
 		try:
 			request = requests.Request('POST', url)
